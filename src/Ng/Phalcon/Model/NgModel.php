@@ -88,4 +88,5 @@ abstract class NgModel extends Model {
     {
         return array();
     }
+
 }
