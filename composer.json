@@ -3,7 +3,7 @@
     "description": "Module for Phalcon",
     "type": "library",
     "require": {
-        "ngurajeka/module": "dev-master"
+        "ngurajeka/module": "0.0.1.x-dev"
     },
     "license": "MIT",
     "authors": [
