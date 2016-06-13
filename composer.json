@@ -1,0 +1,22 @@
+{
+    "name": "ngurajeka/phalcon-crud",
+    "description": "Crud Module for Phalcon",
+    "type": "library",
+    "require": {
+        "php": ">=5.4.0",
+        "ngurajeka/module": "dev-master"
+    },
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Ady Rahmat MA",
+            "email": "ngurajeka.92@gmail.com"
+        }
+    ],
+    "autoload": {
+        "psr-0": {
+            "Ng\\Phalcon": "src"
+        }
+    }
+}
+
