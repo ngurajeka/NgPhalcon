@@ -1,6 +1,6 @@
 {
-    "name": "ngurajeka/phalcon-crud",
-    "description": "Crud Module for Phalcon",
+    "name": "ngurajeka/phalcon",
+    "description": "Module for Phalcon",
     "type": "library",
     "require": {
         "php": ">=5.4.0",
