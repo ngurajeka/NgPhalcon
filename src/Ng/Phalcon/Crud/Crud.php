@@ -72,8 +72,8 @@ trait Crud
             $field = $model::getDeletedFields();
             if (!empty($this->conditions) and (isset($field["by"]))) {
                 $q = sprintf("%s = 'D' OR %s IS NULL", $field["by"], $field["by"]);
-                if (method_exists($model, "getDeleteOptions")) {
-                    $c = $model::getDeleteOptions();
+                if (method_exists($model, "getDeletedOptions")) {
+                    $c = $model::getDeletedOptions();
                     $q = sprintf("%s = '%s' OR %s IS NULL", $field["by"], $c, $field["by"]);
                 }
                 $this->conditions = sprintf("%s AND %s", $this->conditions, $q);
