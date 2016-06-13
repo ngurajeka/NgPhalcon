@@ -3,7 +3,6 @@
     "description": "Module for Phalcon",
     "type": "library",
     "require": {
-        "php": ">=5.4.0",
         "ngurajeka/module": "dev-master"
     },
     "license": "MIT",
