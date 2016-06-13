@@ -1,5 +1,6 @@
 {
     "name": "ngurajeka/phalcon",
+    "minimum-stability": "dev",
     "description": "Module for Phalcon",
     "type": "library",
     "require": {
