@@ -4,7 +4,8 @@ namespace Ng\Phalcon\Model;
 
 use Phalcon\Mvc\Model;
 
-abstract class NgModel extends Model {
+abstract class NgModel extends Model
+{
 
     const DELETED   = 1;
     const ID        = "id";
