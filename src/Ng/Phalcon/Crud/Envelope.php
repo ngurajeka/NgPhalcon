@@ -5,11 +5,18 @@ namespace Ng\Phalcon\Crud;
 trait Envelope
 {
 
-    private function envelope($model, $schema)
+    private function envelope($model, $fields, $publicFields)
     {
         $convert    = array("integer", "tinyint");
         $data       = array();
-        foreach ($schema["public_fields"] as $field => $opt) {
+        foreach ($publicFields as $field) {
+
+            if (!isset($fields[$field])) {
+                $data[$field] = null;
+                continue;
+            }
+
+            $opt = $fields[$field];
 
             if (!isset($model->{$field})) {
                 $data[$field] = null;
