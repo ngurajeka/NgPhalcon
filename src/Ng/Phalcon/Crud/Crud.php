@@ -57,7 +57,7 @@ trait Crud
             return false;
         }
 
-        $this->result   = $this->model;
+        $this->setResult($this->getModel());
         return true;
     }
 
@@ -94,11 +94,36 @@ trait Crud
             "order" => $this->pageOrder,
         );
 
-        if ($first) {
-            return $model::findFirst($param);
-        }
+        try {
+            if ($first) {
 
-        return $model::find($param);
+                $data = $model::findFirst($param);
+                if (method_exists($this, "setResult")) {
+                    $this->setResult($data);
+                }
+
+                return true;
+            }
+
+            $data = $model::find($param);
+            if (method_exists($this, "setResult")) {
+                $this->setResult($data);
+            }
+
+            return true;
+        } catch (Model\Exception $e) {
+
+            if (method_exists($this, "setCode")) {
+                $this->setCode(409);
+            }
+
+            if (method_exists($this, "setErrors")) {
+                $errors = array(array("message" => $e->getMessage()));
+                $this->setErrors($errors);
+            }
+
+            return false;
+        }
     }
 
     private function update(array $data, Tx &$tx=null) {
@@ -135,6 +160,7 @@ trait Crud
             return false;
         }
 
+        $this->setResult($this->getModel());
         return true;
     }
 
