@@ -25,7 +25,7 @@ abstract class NgController extends Controller
         $this->response->setJsonContent($content);
 
         $this->response->setHeader(Header::ACAO, Header::ORIGIN);
-        $this->response->setHeader(Header::ACAM, Methods::METHODS);
+        $this->response->setHeader(Header::ACAM, Methods::getMethods(true));
         $this->response->setHeader(Header::ACAH, Header::ACAHV);
         $this->response->setHeader(Header::ACAC, 'true');
 
@@ -62,15 +62,15 @@ abstract class NgController extends Controller
 
     public function jsoncode($code, $msg, array $content)
     {
-        $this->setStatusCode($code, $msg);
-        $this->setJsonContent($content);
+        $this->response->setStatusCode($code, $msg);
+        $this->response->setJsonContent($content);
         return $this->response;
     }
 
     public function jsonerror($msg)
     {
         $content = array("status" => array("error" => array("message" => $msg)));
-        $this->setStatusCode(Status::CONFLICT, Status::CONFLICT_MSG);
+        $this->response->setStatusCode(Status::CONFLICT, Status::CONFLICT_MSG);
         $this->response->setJsonContent($content);
         return $this->response;
     }
