@@ -1,5 +1,5 @@
 <?php
-namespace Ng\Phalcon\Controller;
+namespace Ng\Phalcon\Controllers;
 
 
 use Phalcon\Mvc\Controller;
