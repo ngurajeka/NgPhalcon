@@ -15,7 +15,7 @@ abstract class NgController extends Controller
 
     protected function setup()
     {
-        if ($hasSetup) {
+        if ($this->hasSetup) {
             return;
         }
 
