@@ -23,7 +23,7 @@ trait Crud
 
     protected $hideDeleted = true;
 
-    private function create(array $data, Tx &$tx=null) {
+    protected function create(array $data, Tx &$tx=null) {
 
         if (!is_null($tx)) {
             $this->model->setTransaction($tx);
@@ -61,7 +61,7 @@ trait Crud
         return true;
     }
 
-    private function read($first=false, Tx &$tx=null) {
+    protected function read($first=false, Tx &$tx=null) {
 
         $model      = $this->model;
         if (!is_null($tx)) {
@@ -126,7 +126,7 @@ trait Crud
         }
     }
 
-    private function update(array $data, Tx &$tx=null) {
+    protected function update(array $data, Tx &$tx=null) {
 
         if (!is_null($tx)) {
             $this->model->setTransaction($tx);
@@ -164,7 +164,7 @@ trait Crud
         return true;
     }
 
-    private function delete(Tx &$tx=null) {
+    protected function delete(Tx &$tx=null) {
 
         if (!is_null($tx)) {
             $this->model->setTransaction($tx);
