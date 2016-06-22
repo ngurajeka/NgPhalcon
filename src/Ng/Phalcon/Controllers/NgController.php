@@ -4,9 +4,9 @@ namespace Ng\Phalcon\Controllers;
 
 use Phalcon\Mvc\Controller;
 
-use Ng\Module\Constants\Http\Header;
-use Ng\Module\Constants\Http\Methods;
-use Ng\Module\Constants\Http\Status;
+use Ng\Modules\Constants\Http\Header;
+use Ng\Modules\Constants\Http\Methods;
+use Ng\Modules\Constants\Http\Status;
 
 abstract class NgController extends Controller
 {
@@ -56,25 +56,46 @@ abstract class NgController extends Controller
 
     public function json(array $content)
     {
+        $this->response->setHeader(Header::CONTENT_TYPE, Header::APPJSON);
         $this->response->setJsonContent($content);
         return $this->response;
     }
 
-    public function jsoncode($code, $msg, array $content)
+    public function jsonCode($code, $msg, array $content)
     {
+        $this->response->setHeader(Header::CONTENT_TYPE, Header::APPJSON);
         $this->response->setStatusCode($code, $msg);
         $this->response->setJsonContent($content);
         return $this->response;
     }
 
-    public function jsonerror($msg)
+    public function jsonConflict($msg)
     {
         $content = array("status" => array("error" => array("message" => $msg)));
+        $this->response->setHeader(Header::CONTENT_TYPE, Header::APPJSON);
         $this->response->setStatusCode(Status::CONFLICT, Status::CONFLICT_MSG);
         $this->response->setJsonContent($content);
         return $this->response;
     }
 
+    public function jsonError($code, $msg)
+    {
+        $content = array("status" => array("error" => array("message" => $msg)));
+        $this->response->setHeader(Header::CONTENT_TYPE, Header::APPJSON);
+        $this->response->setStatusCode($code, $msg);
+        $this->response->setJsonContent($content);
+        return $this->response;
+    }
+
+    public function jsonErrors($code, $msg, $errors)
+    {
+        $content = array("status" => array("error" => array("message" => $msg)));
+        $content["status"]["error"]["errors"] = $errors;
+        $this->response->setHeader(Header::CONTENT_TYPE, Header::APPJSON);
+        $this->response->setStatusCode($code, $msg);
+        $this->response->setJsonContent($content);
+        return $this->response;
+    }
 
     protected function isMethodAllowed(array $methods=null)
     {

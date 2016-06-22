@@ -68,17 +68,8 @@ trait Crud
             $model->setTransaction($tx);
         }
 
-        if (($this->hideDeleted) && (method_exists($model, "getDeletedFields"))) {
-            $field = $model::getDeletedFields();
-            if (!empty($this->conditions) and (isset($field["by"]))) {
-                $q = sprintf("%s = 'D' OR %s IS NULL", $field["by"], $field["by"]);
-                if (method_exists($model, "getDeletedOptions")) {
-                    $c = $model::getDeletedOptions();
-                    $q = sprintf("%s = '%s' OR %s IS NULL", $field["by"], $c, $field["by"]);
-                }
-                $this->conditions = sprintf("%s AND %s", $this->conditions, $q);
-            }
-            unset($field);
+        if ($this->hideDeleted) {
+            $this->queryDeleted($model);
         }
 
         if (!isset($this->pageOrder) or is_null($this->pageOrder)) {
@@ -201,8 +192,39 @@ trait Crud
         return true;
     }
 
+    private function queryDeleted($model)
+    {
+        $conditions = "";
+        if (!method_exists($model, "getDeletedFields")) {
+            return;
+        }
+
+        $field      = $model::getDeletedFields();
+        if (!isset($field["deleted"])) {
+            return;
+        }
+
+        $deleted    = $field["deleted"];
+        if (!is_string($deleted)) {
+            return;
+        }
+
+        $opt        = 0;
+        if (method_exists($model, "getDeletedOptions")) {
+            $opt    = $model::getDeletedOptions();
+        }
+
+        $q = sprintf('(%1$s = \'%2$s\' OR %1$s IS NULL)', $deleted, $opt);
+        if (!empty($this->conditions)) {
+            $this->conditions = sprintf("%s AND %s", $this->conditions, $q);
+            return;
+        }
+
+        $this->conditions = $q;
+    }
+
     /**
-     * @return Model
+     * @return NgModel
      */
     public function getModel() {
 
@@ -210,11 +232,11 @@ trait Crud
     }
 
     /**
-     * @param Model $model
+     * @param NgModel $model
      *
      * @return Crud
      */
-    public function setModel($model) {
+    public function setModel(NgModel $model) {
 
         $this->model = $model;
         return $this;
