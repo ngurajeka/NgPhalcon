@@ -2,14 +2,15 @@
 namespace Ng\Phalcon\Model;
 
 
-use Ng\Module\Constants\Error\Error;
+use Ng\Modules\Constants\Errors\Errors;
 use Phalcon\Mvc\Model;
 
 abstract class NgModel extends Model
 {
 
-    const DELETED   = 1;
-    const ID        = "id";
+    const DELETED       = 1;
+    const NOTDELETED    = 0;
+    const ID            = "id";
 
     public function __call($method, $arguments) {
 
@@ -19,7 +20,7 @@ abstract class NgModel extends Model
         $return = $this;
 
         if (!in_array($field, get_object_vars($this))) {
-            throw new Model\Exception(Error::notFound("Property"));
+            throw new Model\Exception(Errors::notFound("Property"));
         }
 
         switch ($key) {
@@ -50,7 +51,8 @@ abstract class NgModel extends Model
             $key = self::translateKey($key);
         }
 
-        $properties = get_object_vars($this);
+        $model      = get_called_class();
+        $properties = get_object_vars(new $model());
         if (in_array($key, $properties)) {
             return $this->{$key};
         }
@@ -60,11 +62,74 @@ abstract class NgModel extends Model
 
     protected static function translateKey($key)
     {
-        if (!empty(self::usePrefix()) AND is_string(self::usePrefix())) {
-            $key = sprintf("%s%s", self::usePrefix(), ucfirst($key));
+        /** @type NgModel $called */
+        $called = get_called_class();
+        if (!empty($called::usePrefix()) AND is_string($called::usePrefix())) {
+            $key = sprintf("%s%s", $called::usePrefix(), ucfirst($key));
         }
 
         return $key;
+    }
+
+    protected function updateExist($key, $value, $force=true)
+    {
+        $model      = get_called_class();
+        $properties = get_object_vars(new $model());
+        if (in_array($key, $properties)) {
+            if ($force) {
+                $this->{$key} = $value;
+            } else if (!isset($this->{$key})) {
+                $this->{$key} = $value;
+            }
+        }
+    }
+
+    public function beforeCreate()
+    {
+        // created fields
+        if (isset(self::getCreatedFields()["at"])) {
+            $field = self::getCreatedFields()["at"];
+            $this->updateExist($field, date("Y-m-d H:i:s"), false);
+        }
+
+        // deleted fields
+        if (isset(self::getDeletedFields()["deleted"])) {
+            $field = self::getDeletedFields()["deleted"];
+            $this->updateExist($field, self::NOTDELETED, false);
+        }
+
+    }
+
+    public function beforeValidationOnCreate()
+    {
+        $this->beforeCreate();
+    }
+
+    public function beforeSave()
+    {
+        $this->beforeCreate();
+
+        // updated fields
+        if (isset(self::getUpdatedFields()["deleted"])) {
+            $field = self::getUpdatedFields()["deleted"];
+            $this->updateExist($field, date("Y-m-d H:i:s"), false);
+        }
+    }
+
+    public function beforeUpdate()
+    {
+        $this->beforeCreate();
+
+        // updated fields
+        if (isset(self::getUpdatedFields()["deleted"])) {
+            $field = self::getUpdatedFields()["deleted"];
+            $this->updateExist($field, date("Y-m-d H:i:s"), false);
+        }
+    }
+
+    public function beforeValidationOnUpdate()
+    {
+        $this->beforeCreate();
     }
 
     /**
@@ -107,7 +172,7 @@ abstract class NgModel extends Model
      */
     public static function getDeletedOptions()
     {
-        return self::DELETED;
+        return self::NOTDELETED;
     }
 
     /**

@@ -2,6 +2,7 @@
 namespace Ng\Phalcon\Crud;
 
 
+use Ng\Modules\Constants\Errors\Errors;
 use Ng\Phalcon\Model\NgModel;
 use Phalcon\Mvc\Model;
 use Phalcon\Mvc\Model\Message;
@@ -16,10 +17,11 @@ trait Crud
 
     protected $bindings;
     protected $conditions;
-    protected $pageNumber;
-    protected $pageOffset;
+    protected $groupBy;
+    protected $pageNumber   = 1;
+    protected $pageOffset   = 0;
     protected $pageOrder;
-    protected $pageSize;
+    protected $pageSize     = 10;
 
     protected $hideDeleted = true;
 
@@ -63,7 +65,14 @@ trait Crud
 
     protected function read($first=false, Tx &$tx=null) {
 
-        $model      = $this->model;
+        $model      = $this->getModel();
+        if (empty($model) OR is_null($model)) {
+            if (method_exists($this, "setError")) {
+                $this->setError(Errors::notFound("Model"));
+            }
+            return false;
+        }
+
         if (!is_null($tx)) {
             $model->setTransaction($tx);
         }
@@ -80,9 +89,9 @@ trait Crud
 
         $param = array(
             $this->conditions,
-            "limit" => $this->pageSize,
-            "offset"=> $this->pageOffset,
-            "order" => $this->pageOrder,
+            "limit" => $this->getPageSize(),
+            "offset"=> $this->getPageOffset(),
+            "order" => $this->getPageOrder(),
         );
 
         try {
@@ -192,9 +201,27 @@ trait Crud
         return true;
     }
 
+    protected function groupCount(Tx &$tx=null)
+    {
+        $model = $this->model;
+        if (!is_null($tx)) {
+            $model->setTransaction($tx);
+        }
+
+        if ($this->hideDeleted) {
+            $this->queryDeleted($model);
+        }
+
+        $param = array(
+            "conditions"    => $this->conditions,
+            "group"         => $this->groupBy,
+        );
+
+        return $model::count($param);
+    }
+
     private function queryDeleted($model)
     {
-        $conditions = "";
         if (!method_exists($model, "getDeletedFields")) {
             return;
         }
@@ -315,6 +342,25 @@ trait Crud
     public function setConditions($conditions) {
 
         $this->conditions = $conditions;
+        return $this;
+    }
+
+    /**
+     * @return mixed
+     */
+    public function getGroupBy() {
+
+        return $this->groupBy;
+    }
+
+    /**
+     * @param mixed $groupBy
+     *
+     * @return Crud
+     */
+    public function setGroupBy($groupBy) {
+
+        $this->groupBy = $groupBy;
         return $this;
     }
 

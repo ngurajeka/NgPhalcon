@@ -1,10 +1,11 @@
 <?php
-namespace Ng\Phalcon\Crud;
+namespace Ng\Phalcon\Data;
 
+
+use Phalcon\Mvc\Model\Exception;
 
 use Ng\Phalcon\Model\NgModel;
-use Phalcon\Db\Adapter\Pdo;
-use Phalcon\Mvc\Model;
+use Phalcon\Mvc\Model\MetaData;
 
 trait Relation
 {
@@ -12,7 +13,7 @@ trait Relation
     private $linked     = array();
     private $relations  = array();
 
-    private function belongsTo(array &$data, Model $model)
+    private function belongsTo(array &$data, NgModel $model)
     {
 
         if (!isset($this->relations["belongsTo"])) {
@@ -25,17 +26,10 @@ trait Relation
 
         foreach ($this->relations["belongsTo"] as $relation) {
 
-            if (!isset($relation["model"])
-                or !isset($relation["alias"])
-                or !isset($relation["related"])
-                or !isset($relation["related_class_field"])) {
-
-                continue;
-            }
-
-            $alias      = $relation["alias"];
-            $related    = $relation["related"];
-            $ref        = $relation["related_class_field"];
+            /** @type \Phalcon\Mvc\Model\Relation $relation */
+            $alias      = $relation->getOptions()["alias"];
+            $related    = $relation->getFields();
+            $ref        = $relation->getReferencedFields();
             $getter     = sprintf("get%s", ucfirst($ref));
 
             if (!isset($data[$related])) {
@@ -43,17 +37,17 @@ trait Relation
             }
 
             try {
-                /** @type Model $modelRelation */
+                /** @type NgModel $modelRelation */
                 $modelRelation = $model->{$alias};
-            } catch (Model\Exception $e) {
+            } catch (Exception $e) {
+                throw new Exception($e->getMessage());
+            }
+
+            if (!$modelRelation instanceof NgModel) {
                 continue;
             }
 
-            if (method_exists($this, "envelope")) {
-                $dataRelation = $this->envelope($modelRelation);
-            } else {
-                $dataRelation = $modelRelation->toArray();
-            }
+            $dataRelation = $modelRelation->toArray();
 
             if (!isset($data["links"][$ref])) {
                 $data["links"][$ref]    = array();
@@ -68,8 +62,9 @@ trait Relation
                 $data["links"][$ref][] = (int) $modelRelation->{$key};
                 unset($key);
             } else if (method_exists($this, "getDI")) {
+
                 if ($this->getDI()->getModelsMetadata()) {
-                    /** @type Model\MetaData $metadata */
+                    /** @type MetaData $metadata */
                     $metadata   = $this->getDI()->getModelsMetadata();
                     $key        = $metadata->getPrimaryKeyAttributes($modelRelation);
                     $data["links"][$ref][]  = (int) $modelRelation->{$key[0]};
@@ -78,6 +73,7 @@ trait Relation
                 } else {
                     $data["links"][$ref][]  = 0;
                 }
+
             } else {
                 $data["links"][$ref][]      = 0;
             }
@@ -89,7 +85,7 @@ trait Relation
 
     }
 
-    private function hasMany(array &$data, Model $model)
+    private function hasMany(array &$data, NgModel $model)
     {
 
         if (!isset($this->relations["hasMany"])) {
@@ -102,31 +98,21 @@ trait Relation
 
         foreach ($this->relations["hasMany"] as $relation) {
 
-            if (!isset($relation["model"])
-                or !isset($relation["alias"])
-                or !isset($relation["related_class_field"])) {
-
-                continue;
-            }
-
-            $alias      = $relation["alias"];
-            $ref        = $relation["related_class_field"];
+            /** @type \Phalcon\Mvc\Model\Relation $relation */
+            $alias      = $relation->getOptions()["alias"];
+            $ref        = $relation->getReferencedFields();
 
             try {
-                /** @type Model $modelRelation */
+                /** @type NgModel $modelRelation */
                 $modelRelation = $model->{$alias};
-            } catch (Model\Exception $e) {
-                continue;
+            } catch (Exception $e) {
+                throw new Exception($e->getMessage());
             }
 
             foreach ($modelRelation as $_model) {
 
-                /** @type Model $_model */
-                if (method_exists($this, "envelope")) {
-                    $dataRelation = $this->envelope($_model);
-                } else {
-                    $dataRelation = $_model->toArray();
-                }
+                /** @type NgModel $_model */
+                $dataRelation = $_model->toArray();
 
                 if (!isset($data["links"][$ref])) {
                     $data["links"][$ref]    = array();
@@ -140,7 +126,7 @@ trait Relation
                     unset($key);
                 } else if (method_exists($this, "getDI")) {
                     if ($this->getDI()->getModelsMetadata()) {
-                        /** @type Model\MetaData $metadata */
+                        /** @type MetaData $metadata */
                         $metadata   = $this->getDI()->getModelsMetadata();
                         $key        = $metadata->getPrimaryKeyAttributes($_model);
                         $data["links"][$ref][]  = (int) $_model->{$key[0]};
@@ -166,31 +152,20 @@ trait Relation
 
     }
 
-    private function getRelations(array &$data, Model $model)
+    private function getRelations(array &$data, NgModel $model)
     {
-        if (!isset($this->relations)) {
-            if (!$this->getRelationsOptions($model)) {
-                return false;
-            }
-        }
-
+        $this->getRelationsOptions($model);
         $this->belongsTo($data, $model);
         $this->hasMany($data, $model);
         return true;
     }
 
-    private function getRelationsOptions(Model $model)
+    private function getRelationsOptions(NgModel $model)
     {
+        $modelsManager = $model->getModelsManager();
 
-        if (!method_exists($model, "getRelations")) {
-            return false;
-        }
-
-        /** @type NgModel $model */
-        /** @type Relation $this */
-        $this->relations = $model::getRelations();
-
-        return true;
+        $this->relations["belongsTo"]   = $modelsManager->getBelongsTo($model);
+        $this->relations["hasMany"]     = $modelsManager->getHasMany($model);
     }
 
 }

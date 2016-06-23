@@ -1,34 +1,35 @@
 <?php
-namespace Ng\Phalcon\Crud;
+namespace Ng\Phalcon\Data;
 
+
+use Ng\Phalcon\Model\NgModel;
 
 trait Envelope
 {
 
-    private function envelope($model, $fields, $publicFields)
+    private function envelope(NgModel $model)
     {
-        $convert    = array("integer", "tinyint");
         $data       = array();
+
+        $publicFields   = $model::getPublicFields();
+        $modelsMetadata = $model->getModelsMetaData();
+        $fields         = $modelsMetadata->getDataTypes($model);
+
         foreach ($publicFields as $field) {
 
             if (!isset($fields[$field])) {
-                $data[$field] = null;
                 continue;
             }
+            
+            $func   = sprintf("get%s", ucfirst($field));
 
-            $opt = $fields[$field];
-
-            if (!isset($model->{$field})) {
-                $data[$field] = null;
-                continue;
+            switch ($fields[$field]) {
+                case 0:
+                    $data[$field] = (int) $model->$func();
+                    break;
+                default:
+                    $data[$field] = $model->$func();
             }
-
-            if (in_array($opt["dataType"], $convert)) {
-                $data[$field] = (int) $model->{$field};
-                continue;
-            }
-
-            $data[$field] = $model->{$field};
 
         }
 
