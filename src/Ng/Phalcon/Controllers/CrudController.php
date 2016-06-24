@@ -8,7 +8,6 @@ use Phalcon\Mvc\Model\TransactionInterface as Tx;
 
 use Titu\Modules\Modules;
 
-use Ng\Modules\Constants\Errors\Errors;
 use Ng\Modules\Constants\Http\Methods;
 use Ng\Modules\Constants\Http\Status;
 use Ng\Phalcon\Data\Json;
@@ -35,8 +34,7 @@ abstract class CrudController extends NgController
         $this->loadRegistry();
 
         if (!isset($this->registry["models"])) {
-            $msg = Errors::notFound("Models Registry");
-            return $this->jsonError(Status::NOTFOUND, $msg);
+            return $this->jsonError(Status::NOTFOUND, "Registry Was Not Found");
         }
 
         if (!isset($this->registry["models"][$model])) {
@@ -46,7 +44,7 @@ abstract class CrudController extends NgController
 
         $module = $this->registry["models"][$model]["module"];
         if (!class_exists($module)) {
-            $msg = Errors::notFound(sprintf("Module %s", $module));
+            $msg = sprintf("Module %s Was Not Found", $module);
             return $this->jsonError(Status::NOTFOUND, $msg);
         }
 
@@ -81,15 +79,14 @@ abstract class CrudController extends NgController
         $module = new $module();
         try {
 
-            if (!$module->get($id)) {
-                $msg = !empty($module->getError())
-                       ? $module->getError() : Status::CONFLICT_MSG;
+            if (!$module->read($id)) {
+                $msg = Status::CONFLICT_MSG;
                 throw new \Exception($msg);
             }
 
         } catch (\Exception $e) {
             return $this->jsonErrors(
-                Status::CONFLICT, $e->getMessage(), $module->getErrors()
+                Status::CONFLICT, $e->getMessage(), $module->getErrors()->toArray()
             );
         }
 

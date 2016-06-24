@@ -2,12 +2,11 @@
 namespace Ng\Phalcon\Data;
 
 
-use Ng\Phalcon\Data;
 use Ng\Phalcon\Model\NgModel;
 use Phalcon\Mvc\Model\Resultset;
 use Phalcon\Mvc\User\Component;
 
-class Json extends Component implements Data
+class Json extends Component implements DataInterface
 {
     use Envelope {envelope as private _envelope;}
     use Relation;

@@ -2,13 +2,14 @@
 namespace Ng\Phalcon\Crud;
 
 
-use Ng\Modules\Constants\Errors\Errors;
+use Ng\Modules\Base;
+use Ng\Modules\Errors\Error\Error;
 use Ng\Phalcon\Model\NgModel;
 use Phalcon\Mvc\Model;
 use Phalcon\Mvc\Model\Message;
 use Phalcon\Mvc\Model\TransactionInterface as Tx;
 
-trait Crud
+class Crud extends Base
 {
 
     /** @type $model NgModel */
@@ -25,7 +26,13 @@ trait Crud
 
     protected $hideDeleted = true;
 
-    protected function create(array $data, Tx &$tx=null) {
+    public function __construct(NgModel $model)
+    {
+        parent::__construct();
+        $this->model    = $model;
+    }
+
+    public function create(array $data, Tx &$tx=null) {
 
         if (!is_null($tx)) {
             $this->model->setTransaction($tx);
@@ -33,27 +40,22 @@ trait Crud
 
         if (!$this->model->create($data)) {
 
-            $errors = array();
             foreach ($this->model->getMessages() as $i => $err) {
 
                 /** @type Message $err */
-                $errors[$i] = array(
-                    "field"     => $err->getField(),
-                    "message"   => $err->getMessage(),
-                );
+                $field  = $err->getField();
+                $msg    = $err->getMessage();
+                $src    = $err->getModel();
 
                 if ($err->getType() == "PresenceOf") {
-                    $errors[$i]["code"] = 404;
+                    $error = Error::notFound($msg, $field, $src);
+                } else {
+                    $error = Error::populate("409", $msg, $field, null, $src);
                 }
 
-            }
+                $this->errors->append($error);
+                unset($error);
 
-            if (method_exists($this, "setCode")) {
-                $this->setCode(409);
-            }
-
-            if (method_exists($this, "setErrors")) {
-                $this->setErrors($errors);
             }
 
             return false;
@@ -63,13 +65,10 @@ trait Crud
         return true;
     }
 
-    protected function read($first=false, Tx &$tx=null) {
+    public function read($first=false, Tx &$tx=null) {
 
         $model      = $this->getModel();
         if (empty($model) OR is_null($model)) {
-            if (method_exists($this, "setError")) {
-                $this->setError(Errors::notFound("Model"));
-            }
             return false;
         }
 
@@ -98,35 +97,31 @@ trait Crud
             if ($first) {
 
                 $data = $model::findFirst($param);
-                if (method_exists($this, "setResult")) {
-                    $this->setResult($data);
-                }
+                $this->setResult($data);
 
                 return true;
             }
 
             $data = $model::find($param);
-            if (method_exists($this, "setResult")) {
-                $this->setResult($data);
-            }
+            $this->setResult($data);
 
             return true;
         } catch (Model\Exception $e) {
 
-            if (method_exists($this, "setCode")) {
-                $this->setCode(409);
-            }
+            $msg    = $e->getMessage();
+            $src    = $e->getTraceAsString();
+            $error = Error::populate("409", $msg, null, null, $src);
+            $this->errors->append($error);
 
-            if (method_exists($this, "setErrors")) {
-                $errors = array(array("message" => $e->getMessage()));
-                $this->setErrors($errors);
-            }
+            unset($error);
+            unset($msg);
+            unset($src);
 
             return false;
         }
     }
 
-    protected function update(array $data, Tx &$tx=null) {
+    public function update(array $data, Tx &$tx=null) {
 
         if (!is_null($tx)) {
             $this->model->setTransaction($tx);
@@ -134,27 +129,23 @@ trait Crud
 
         if (!$this->model->update($data)) {
 
-            $errors = array();
             /** @type Message $err */
             foreach ($this->model->getMessages() as $i => $err) {
 
-                $errors[$i] = array(
-                    "field"     => $err->getField(),
-                    "message"   => $err->getMessage(),
-                );
+                /** @type Message $err */
+                $field  = $err->getField();
+                $msg    = $err->getMessage();
+                $src    = $err->getModel();
 
                 if ($err->getType() == "PresenceOf") {
-                    $errors[$i]["code"] = 404;
+                    $error = Error::notFound($msg, $field, $src);
+                } else {
+                    $error = Error::populate("409", $msg, $field, null, $src);
                 }
 
-            }
+                $this->errors->append($error);
+                unset($error);
 
-            if (method_exists($this, "setCode")) {
-                $this->setCode(409);
-            }
-
-            if (method_exists($this, "setErrors")) {
-                $this->setErrors($errors);
             }
 
             return false;
@@ -164,7 +155,7 @@ trait Crud
         return true;
     }
 
-    protected function delete(Tx &$tx=null) {
+    public function delete(Tx &$tx=null) {
 
         if (!is_null($tx)) {
             $this->model->setTransaction($tx);
@@ -176,14 +167,19 @@ trait Crud
             /** @type Message $err */
             foreach ($this->model->getMessages() as $i => $err) {
 
-                $errors[$i] = array(
-                    "field"     => $err->getField(),
-                    "message"   => $err->getMessage(),
-                );
+                /** @type Message $err */
+                $field  = $err->getField();
+                $msg    = $err->getMessage();
+                $src    = $err->getModel();
 
                 if ($err->getType() == "PresenceOf") {
-                    $errors[$i]["code"] = 404;
+                    $error = Error::notFound($msg, $field, $src);
+                } else {
+                    $error = Error::populate("409", $msg, $field, null, $src);
                 }
+
+                $this->errors->append($error);
+                unset($error);
 
             }
 
@@ -201,7 +197,7 @@ trait Crud
         return true;
     }
 
-    protected function groupCount(Tx &$tx=null)
+    public function groupCount(Tx &$tx=null)
     {
         $model = $this->model;
         if (!is_null($tx)) {
