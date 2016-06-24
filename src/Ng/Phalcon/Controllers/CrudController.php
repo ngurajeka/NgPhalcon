@@ -26,7 +26,7 @@ abstract class CrudController extends NgController
         // check model exist / not
         $model = $this->translateModel($model);
         if (!class_exists($model)) {
-            $msg = sprintf("Resouce Model Was %s", Status::NOTFOUND_MSG);
+            $msg = sprintf("Resource Model Was %s", Status::NOTFOUND_MSG);
             return $this->jsonError(Status::NOTFOUND, $msg);
         }
 
