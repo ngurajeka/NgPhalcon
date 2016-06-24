@@ -38,14 +38,16 @@ class JSON implements DataInterface
     protected function buildSrc(NgModel $src, $multiple=true)
     {
         $data           = $this->envelope->envelope($src);
-        $this->linked   = $this->relation->getRelations(
+        $this->relation->getRelations(
             $data, $src, $this->envelope, $this->linked
         );
+
         if ($multiple == true) {
             $this->data[]   = $data;
         } else {
             $this->data     = $data;
         }
+
         unset($data);
     }
 

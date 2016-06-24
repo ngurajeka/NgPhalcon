@@ -119,6 +119,9 @@ class Relation
                 continue;
             }
 
+            // put relation id on data.links
+            $this->data["links"][$references][] = (int) $ngModel->getId();
+
             // envelope model into relation data
             $relationData   = $this->envelope->envelope($ngModel);
 
@@ -137,13 +140,18 @@ class Relation
                                  Envelope $envelope,
                                  array &$linked)
     {
-        $this->data     = $data;
-        $this->envelope = $envelope;
-        $this->linked   = $linked;
+        if (!isset($data["links"])) {
+            $data["links"]  = array();
+        }
+
+        $this->data         = $data;
+        $this->envelope     = $envelope;
+        $this->linked       = $linked;
 
         $this->fetchRelationUsingModelsManager($model);
 
-        return $this->linked;
+        $data   = $this->data;
+        $linked = $this->linked;
     }
 
     private function fetchRelationUsingModelsManager(NgModel $model)
