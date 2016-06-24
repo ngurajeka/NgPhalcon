@@ -78,7 +78,7 @@ trait Relation
                 $data["links"][$ref][]      = 0;
             }
 
-            $this->linked[$ref] = $dataRelation;
+            $this->linked[$ref][]           = $dataRelation;
 
             unset($data[$ref]);
         }
