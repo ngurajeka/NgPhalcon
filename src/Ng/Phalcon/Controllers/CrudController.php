@@ -2,6 +2,7 @@
 namespace Ng\Phalcon\Controllers;
 
 
+use Ng\Phalcon\Data\JSON\JSON;
 use Phalcon\Mvc\Model\Transaction\Exception as TxFailed;
 use Phalcon\Mvc\Model\Transaction\Manager;
 use Phalcon\Mvc\Model\TransactionInterface as Tx;
@@ -10,7 +11,6 @@ use Titu\Modules\Modules;
 
 use Ng\Modules\Constants\Http\Methods;
 use Ng\Modules\Constants\Http\Status;
-use Ng\Phalcon\Data\Json;
 use Ng\Phalcon\Request\Parser;
 
 abstract class CrudController extends NgController
@@ -51,10 +51,10 @@ abstract class CrudController extends NgController
         // switch http method
         switch ($this->request->getMethod()) {
             case Methods::GET:
-                return $this->get($module, $model, $id);
+                return $this->get($module, $id);
                 break;
             case Methods::POST:
-                return $this->post($module, $model, $id);
+                return $this->post($module);
                 break;
             case Methods::PUT:
                 return $this->put($module, $model, $id);
@@ -73,7 +73,7 @@ abstract class CrudController extends NgController
         }
     }
 
-    private function get($module, $model, $id=null)
+    private function get($module, $id=null)
     {
         /** @type Modules $module */
         $module = new $module();
@@ -91,13 +91,13 @@ abstract class CrudController extends NgController
         }
 
         // parse request (query string)
-        $json = new Json();
+        $json = new JSON();
         $json->setSource($module->getResult());
         $json->populate();
         return $this->jsonCode(Status::OK, Status::OK_MSG, $json->getPopulated());
     }
 
-    private function post($module, $model, $id=null)
+    private function post($module)
     {
         /** @type Modules $module */
         $module = new $module();
@@ -116,13 +116,11 @@ abstract class CrudController extends NgController
 
         try {
 
-            if (!$module->post($data, $tx)) {
-                $msg = !empty($module->getError())
-                       ? $module->getError() : Status::CONFLICT_MSG;
+            if (!$module->create($data, $tx)) {
                 if (!is_null($tx)) {
-                    $tx->rollback($msg);
+                    $tx->rollback(Status::CONFLICT_MSG);
                 } else {
-                    throw new TxFailed($msg);
+                    throw new TxFailed(Status::CONFLICT_MSG);
                 }
             }
 
@@ -140,11 +138,11 @@ abstract class CrudController extends NgController
             );
         }
 
-        $json = new Json();
-        $json->setSource($module->getData());
+        $json = new JSON();
+        $json->setSource($module->getResult());
         $json->populate();
         return $this->jsonCode(
-            Status::CREATED, Status::CREATED_MSG, $json->getData()
+            Status::CREATED, Status::CREATED_MSG, $json->getPopulated()
         );
     }
 
