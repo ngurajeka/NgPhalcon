@@ -3,169 +3,160 @@ namespace Ng\Phalcon\Data;
 
 
 use Phalcon\Mvc\Model\Exception;
+use Phalcon\Mvc\Model\Relation as ModelRelation;
 
 use Ng\Phalcon\Model\NgModel;
 use Phalcon\Mvc\Model\MetaData;
+use Phalcon\Mvc\Model\Resultset;
 
-trait Relation
+class Relation
 {
+    protected $data       = array();
+    /** @type Envelope $envelope */
+    protected $envelope;
 
-    private $linked     = array();
-    private $relations  = array();
+    protected $linked     = array();
+    protected $relations  = array();
 
-    private function belongsTo(array &$data, NgModel $model)
+    protected $belongsToIds = array();
+    protected $hasManyIds   = array();
+
+    final protected function belongsTo(NgModel $model, ModelRelation $relation)
     {
-
-        if (!isset($this->relations["belongsTo"])) {
+        // checking options from relations
+        $opts = $relation->getOptions();
+        if (!isset($opts["alias"])) {
             return;
         }
 
-        if (!is_array($this->relations["belongsTo"])) {
+        // build local needed variable
+        $alias      = $opts["alias"];
+        $field      = $relation->getFields();
+        $reference  = $relation->getReferencedFields();
+
+        // check if related field exist or not
+        if (!isset($this->data[$field])) {
             return;
         }
 
-        foreach ($this->relations["belongsTo"] as $relation) {
+        // build data.links
+        $this->data["links"][$reference] = (int) $this->data[$field];
 
-            /** @type \Phalcon\Mvc\Model\Relation $relation */
-            $alias      = $relation->getOptions()["alias"];
-            $related    = $relation->getFields();
-            $ref        = $relation->getReferencedFields();
-            $getter     = sprintf("get%s", ucfirst($ref));
+        // check if data[related] already populated
+        if (in_array($this->data[$field], $this->belongsToIds)) {
+            return;
+        }
 
-            if (!isset($data[$related])) {
+        // store to haystack
+        $this->belongsToIds[] = $this->data[$field];
+
+        // fetch model data, otherwise throw an exception
+        try {
+            $relationModel = $model->{$alias};
+        } catch (Exception $e) {
+            throw new Exception($e->getMessage());
+        }
+
+        // check if the model was an instance of NgModel
+        if (!$relationModel instanceof NgModel) {
+            return;
+        }
+
+        // envelope relationModel to get relation data
+        $relationData = $this->envelope->envelope($relationModel);
+
+        // check if linked[reference] already populated
+        if (!isset($this->linked[$reference])) {
+            $this->linked[$reference]       = array();
+        }
+
+        // put relation data on linked
+        $this->linked[$reference][]         = $relationData;
+
+        // remove data[field]
+        unset($this->data[$field]);
+    }
+
+    final protected function hasMany(NgModel $model, ModelRelation $relation)
+    {
+        // check options for alias
+        $opts = $relation->getOptions();
+        if (!isset($opts["alias"])) {
+            return;
+        }
+
+        // build needed variable(s)
+        $alias      = $opts["alias"];
+        $references = $relation->getReferencedFields();
+
+        // fetch resultset
+        try {
+            /** @type Resultset $resultSet */
+            $resultSet = $model->{$alias};
+        } catch (Exception $e) {
+            throw new Exception($e->getMessage());
+        }
+
+        // check and prepare data.links
+        if (!isset($this->data["links"][$references])) {
+            $this->data["links"][$references] = array();
+        }
+
+        // check and prepare linked
+        if (!isset($this->linked[$references])) {
+            $this->linked[$references] = array();
+        }
+
+        foreach ($resultSet as $ngModel) {
+            /** @type NgModel $ngModel */
+            // check if this model already populated
+            if (in_array($ngModel->getId(), $this->hasManyIds)) {
                 continue;
             }
 
-            try {
-                /** @type NgModel $modelRelation */
-                $modelRelation = $model->{$alias};
-            } catch (Exception $e) {
-                throw new Exception($e->getMessage());
-            }
-
-            if (!$modelRelation instanceof NgModel) {
+            // check if this model already in our data.links
+            if (in_array($ngModel->getId(), $this->data["links"][$references])) {
                 continue;
             }
 
-            $dataRelation = $modelRelation->toArray();
+            // envelope model into relation data
+            $relationData   = $this->envelope->envelope($ngModel);
 
-            if (!isset($data["links"][$ref])) {
-                $data["links"][$ref]    = array();
+            // check if relationData already in our linked
+            if (in_array($relationData, $this->linked[$references])) {
+                continue;
             }
 
-            if (method_exists($modelRelation, $getter)) {
-                $data["links"][$ref][] = (int)$modelRelation->$getter();
-            } else if (method_exists($modelRelation, "getId")) {
-                $data["links"][$ref][] = (int) $modelRelation->getId();
-            } else if (method_exists($modelRelation, "getPrimaryKey")) {
-                $key = $modelRelation::getPrimarykey();
-                $data["links"][$ref][] = (int) $modelRelation->{$key};
-                unset($key);
-            } else if (method_exists($this, "getDI")) {
-
-                if ($this->getDI()->getModelsMetadata()) {
-                    /** @type MetaData $metadata */
-                    $metadata   = $this->getDI()->getModelsMetadata();
-                    $key        = $metadata->getPrimaryKeyAttributes($modelRelation);
-                    $data["links"][$ref][]  = (int) $modelRelation->{$key[0]};
-                    unset($metadata);
-                    unset($key);
-                } else {
-                    $data["links"][$ref][]  = 0;
-                }
-
-            } else {
-                $data["links"][$ref][]      = 0;
-            }
-
-            $this->linked[$ref][]           = $dataRelation;
-
-            unset($data[$ref]);
+            // put relation data on our linked
+            $this->linked[$references][] = $relationData;
         }
-
     }
 
-    private function hasMany(array &$data, NgModel $model)
+    public function getRelations(array &$data,
+                                 NgModel $model,
+                                 Envelope $envelope,
+                                 array &$linked)
     {
+        $this->data     = $data;
+        $this->envelope = $envelope;
+        $this->linked   = $linked;
 
-        if (!isset($this->relations["hasMany"])) {
-            return;
-        }
+        $this->fetchRelationUsingModelsManager($model);
 
-        if (!is_array($this->relations["hasMany"])) {
-            return;
-        }
-
-        foreach ($this->relations["hasMany"] as $relation) {
-
-            /** @type \Phalcon\Mvc\Model\Relation $relation */
-            $alias      = $relation->getOptions()["alias"];
-            $ref        = $relation->getReferencedFields();
-
-            try {
-                /** @type NgModel $modelRelation */
-                $modelRelation = $model->{$alias};
-            } catch (Exception $e) {
-                throw new Exception($e->getMessage());
-            }
-
-            foreach ($modelRelation as $_model) {
-
-                /** @type NgModel $_model */
-                $dataRelation = $_model->toArray();
-
-                if (!isset($data["links"][$ref])) {
-                    $data["links"][$ref]    = array();
-                }
-
-                if (method_exists($_model, "getId")) {
-                    $data["links"][$ref][] = (int) $_model->getId();
-                } else if (method_exists($_model, "getPrimaryKey")) {
-                    $key = $_model::getPrimarykey();
-                    $data["links"][$ref][] = (int) $_model->{$key};
-                    unset($key);
-                } else if (method_exists($this, "getDI")) {
-                    if ($this->getDI()->getModelsMetadata()) {
-                        /** @type MetaData $metadata */
-                        $metadata   = $this->getDI()->getModelsMetadata();
-                        $key        = $metadata->getPrimaryKeyAttributes($_model);
-                        $data["links"][$ref][]  = (int) $_model->{$key[0]};
-                        unset($metadata);
-                        unset($key);
-                    } else {
-                        $data["links"][$ref][]  = 0;
-                    }
-                } else {
-                    $data["links"][$ref][]      = 0;
-                }
-
-                if (!isset($this->linked[$ref]))
-                    $this->linked[$ref]         = array();
-
-                if (!in_array($dataRelation, $this->linked[$ref]))
-                    $this->linked[$ref][]       = $dataRelation;
-
-            }
-
-            unset($data[$ref]);
-        }
-
+        return $this->linked;
     }
 
-    private function getRelations(array &$data, NgModel $model)
-    {
-        $this->getRelationsOptions($model);
-        $this->belongsTo($data, $model);
-        $this->hasMany($data, $model);
-        return true;
-    }
-
-    private function getRelationsOptions(NgModel $model)
+    private function fetchRelationUsingModelsManager(NgModel $model)
     {
         $modelsManager = $model->getModelsManager();
 
-        $this->relations["belongsTo"]   = $modelsManager->getBelongsTo($model);
-        $this->relations["hasMany"]     = $modelsManager->getHasMany($model);
+        foreach ($modelsManager->getBelongsTo($model) as $relation) {
+            $this->belongsTo($model, $relation);
+        }
+
+        foreach ($modelsManager->getHasMany($model) as $relation) {
+            $this->hasMany($model, $relation);
+        }
     }
 
 }

@@ -4,12 +4,13 @@ namespace Ng\Phalcon\Data;
 
 use Ng\Phalcon\Model\NgModel;
 
-trait Envelope
+class Envelope
 {
 
-    private function envelope(NgModel $model)
+    public function envelope(NgModel $model)
     {
         $data       = array();
+        $data["id"] = (int) $model->getId();
 
         $publicFields   = $model::getPublicFields();
         $modelsMetadata = $model->getModelsMetaData();
