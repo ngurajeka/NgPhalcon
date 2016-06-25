@@ -20,6 +20,7 @@ class Relation
 
     protected $belongsToIds = array();
     protected $hasManyIds   = array();
+    protected $hasOneIds    = array();
 
     final protected function belongsTo(NgModel $model, ModelRelation $relation)
     {
@@ -75,6 +76,66 @@ class Relation
 
         // remove data[field]
         unset($this->data[$field]);
+    }
+
+    final protected function hasOne(NgModel $model, ModelRelation $relation)
+    {
+        // check options for alias
+        $opts = $relation->getOptions();
+        if (!isset($opts["alias"])) {
+            return;
+        }
+
+        // build needed variable(s)
+        $alias      = $opts["alias"];
+        $references = $relation->getReferencedFields();
+
+        // fetch resultset
+        try {
+            /** @type NgModel $ngModel */
+            $ngModel = $model->{$alias};
+        } catch (Exception $e) {
+            throw new Exception($e->getMessage());
+        }
+
+        if (!$ngModel instanceof NgModel) {
+            return;
+        }
+
+        // check and prepare data.links
+        if (!isset($this->data["links"][$references])) {
+            $this->data["links"][$references] = array();
+        }
+
+        // check and prepare linked
+        if (!isset($this->linked[$references])) {
+            $this->linked[$references] = array();
+        }
+
+        /** @type NgModel $ngModel */
+        // check if this model already populated
+        if (in_array($ngModel->getId(), $this->hasOneIds)) {
+            return;
+        }
+
+        // check if this model already in our data.links
+        if (in_array($ngModel->getId(), $this->data["links"][$references])) {
+            return;
+        }
+
+        // put relation id on data.links
+        $this->data["links"][$references][] = (int) $ngModel->getId();
+
+        // envelope model into relation data
+        $relationData   = $this->envelope->envelope($ngModel);
+
+        // check if relationData already in our linked
+        if (in_array($relationData, $this->linked[$references])) {
+            return;
+        }
+
+        // put relation data on our linked
+        $this->linked[$references][] = $relationData;
     }
 
     final protected function hasMany(NgModel $model, ModelRelation $relation)
@@ -164,6 +225,9 @@ class Relation
 
         foreach ($modelsManager->getHasMany($model) as $relation) {
             $this->hasMany($model, $relation);
+        }
+        foreach ($modelsManager->getHasOne($model) as $relation) {
+            $this->hasOne($model, $relation);
         }
     }
 
